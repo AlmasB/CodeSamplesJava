@@ -1,2 +1,2 @@
 # CodeSamplesJava
-A collection of short feature specific code samples in Java
+A collection of short, feature-specific code samples in Java
