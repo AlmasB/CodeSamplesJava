@@ -1,0 +1,244 @@
+package com.almasb.gameutils.pool;
+
+import java.lang.reflect.Constructor;
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.Deque;
+import java.util.Stack;
+
+/**
+ * @author Almas Baimagambetov (almaslvl@gmail.com)
+ */
+class ObjectPool<T> {
+
+    //private static final int AUTO_GROWTH_SIZE = 16;
+
+    private PoolingStrategy strategy = PoolingStrategy.EAGER;
+
+    private T[] items;
+    private Class<T> type;
+    private Constructor<T> constructor;
+
+    //private Deque<T> stack = new ArrayDeque<T>();
+
+    /**
+     * Number of usable items.
+     * Equivalent to the number of non-null items.
+     */
+    private int free = 0;
+
+    private int freePointerIndex = 0;
+    private int usedPointerIndex = 0;
+
+    private int lastIndex = 0;
+
+    @SuppressWarnings("unchecked")
+    ObjectPool(Class<T> type) {
+        this.type = type;
+        try {
+            constructor = type.getConstructor();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+
+
+//        for (int i = 0; i < 100000; i++) {
+//            stack.addLast(newInstance());
+//        }
+
+        items = (T[]) new Object[128];
+
+        if (strategy == PoolingStrategy.EAGER) {
+            populate(0, items.length);
+        }
+    }
+
+    /**
+     * @return number of items this pool can hold at this moment
+     */
+    int size() {
+        return items.length;
+    }
+
+    /**
+     * @return number of free items in this pool
+     */
+    int sizeFree() {
+        return free;
+    }
+
+    private void populate(int fromIndex, int toIndex) {
+        for (int i = fromIndex; i < toIndex; i++) {
+            items[i] = newInstance();
+        }
+
+        free += toIndex - fromIndex;
+    }
+
+    // TODO: if not set eager then we have 16 unused slots at the beginning
+    void ensureCapacity(int numItems) {
+        if (free >= numItems)
+            return;
+
+        growAndPopulate(numItems - free);
+    }
+
+    /**
+     * Note: new size will be = old size + size.
+     *
+     * @param size how many items to grow by
+     */
+    void grow(int size) {
+        int oldSize = items.length;
+
+        items = Arrays.copyOf(items, oldSize + size);
+    }
+
+    void growAndPopulate(int size) {
+        int oldSize = items.length;
+        int newSize = oldSize + size;
+
+        items = Arrays.copyOf(items, newSize);
+
+        populate(oldSize, newSize);
+    }
+
+    T getOrNew() {
+
+
+//        if (!stack.isEmpty()) {
+//            return stack.removeLast();
+//        } else {
+//            return newInstance();
+//        }
+
+
+        if (lastIndex - 1 >= 0) {
+            return items[--lastIndex];
+        } else {
+            return newInstance();
+        }
+
+
+
+
+
+//        /////////////////////////////////////////////////////////////////////////
+//
+//        if (free > 0) {
+//            if (freePointerIndex == size()) {
+//                freePointerIndex = 0;
+//                //usedPointerIndex = 0;
+//            }
+//
+//            T object = items[freePointerIndex];
+//
+////            if (object == null) {
+////                System.out.println(freePointerIndex +" " + usedPointerIndex +" Total: " + size() + " Free: " + sizeFree());
+////            }
+//
+//            items[freePointerIndex++] = null;
+//
+////            if (freePointerIndex == size() && free == 0) {
+////
+////            }
+//
+//            free--;
+//            return object;
+//
+////            // TODO: more efficient algorithm / data structure?
+////            for (int i = 0; i < items.length; i++) {
+////                if (items[i] != null) {
+////                    T object = items[i];
+////                    items[i] = null;
+////
+////                    free--;
+////                    return object;
+////                }
+////            }
+//        }
+//
+//        //System.out.println("Growing: " + freePointerIndex +" " + usedPointerIndex +" Total: " + size() + " Free: " + sizeFree());
+//
+//        freePointerIndex = size();
+//        usedPointerIndex = 0;
+//        growAndPopulate(size() * 2);
+//
+////        grow(size() * 2);
+////        items[freePointerIndex] = newInstance();
+////        free++;
+//
+//        //return newInstance();
+//        return getOrNew();
+    }
+
+    void put(T object) {
+
+//        stack.addLast(object);
+//
+//        if (object instanceof Poolable) {
+//            ((Poolable) object).reset();
+//        }
+
+
+
+
+        if (lastIndex == size()) {
+            grow(size() * 2);
+        }
+
+        items[lastIndex++] = object;
+
+        if (object instanceof Poolable) {
+            ((Poolable) object).reset();
+        }
+
+
+
+////        if (free == size()) {
+////            throw new IllegalArgumentException("Bla-bla");
+////        }
+//
+//        if (usedPointerIndex == size()) {
+//            usedPointerIndex = 0;
+//        }
+//
+////        if (items[usedPointerIndex] != null) {
+////            System.out.println("Overwrite: " + freePointerIndex +" " + usedPointerIndex +" Total: " + size() + " Free: " + sizeFree());
+////        }
+//
+//        items[usedPointerIndex++] = object;
+//
+//        if (object instanceof Poolable) {
+//            ((Poolable) object).reset();
+//        }
+//
+//        free++;
+//
+//
+////        for (int i = 0; i < items.length; i++) {
+////            if (items[i] == null) {
+////                items[i] = object;
+////
+////                if (object instanceof Poolable) {
+////                    ((Poolable) object).reset();
+////                }
+////
+////                free++;
+////                return;
+////            }
+////        }
+//
+//        // TODO: or shall we just increase pool and put it there?
+//        //throw new IllegalArgumentException("Tried to put object: " + object + ", but all objects are already in the pool");
+    }
+
+    private T newInstance() {
+        try {
+            return constructor.newInstance();
+            //return type.newInstance();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Class " + type + " cannot be initialized with public no-arg constructor: " + e);
+        }
+    }
+}
